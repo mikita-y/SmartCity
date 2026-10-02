@@ -52,5 +52,40 @@ public class VehicleCreationServiceTests
             () => _service.Create(unsupportedType, "Unknown"));
 
         Assert.Equal("vehicleType", exception.ParamName);
+        Assert.Equal(unsupportedType, exception.ActualValue);
+    }
+
+    [Fact]
+    public void Create_WhenCreatorIsSupplied_UsesItsVehicleConfiguration()
+    {
+        var service = new VehicleCreationService([new CustomDroneCreator()]);
+
+        var vehicle = service.Create(VehicleType.Drone, "Custom Courier");
+
+        var drone = Assert.IsType<Drone>(vehicle);
+        Assert.NotEqual(Guid.Empty, drone.Id);
+        Assert.Equal("Custom Courier", drone.Name);
+        Assert.Equal(60m, drone.MaxSpeedKph);
+        Assert.Equal(10m, drone.MaxPayloadKg);
+    }
+
+    [Fact]
+    public void Create_WhenVehicleTypeHasNoRegisteredCreator_ThrowsArgumentOutOfRangeException()
+    {
+        var service = new VehicleCreationService([new DroneCreator()]);
+
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(
+            () => service.Create(VehicleType.CourierBike, "City Rider"));
+
+        Assert.Equal("vehicleType", exception.ParamName);
+        Assert.Equal(VehicleType.CourierBike, exception.ActualValue);
+    }
+
+    private sealed class CustomDroneCreator : VehicleCreator
+    {
+        public override VehicleType VehicleType => VehicleType.Drone;
+
+        protected override Vehicle CreateVehicle(Guid id, string name) =>
+            new Drone(id, name, maxSpeedKph: 60m, maxPayloadKg: 10m);
     }
 }

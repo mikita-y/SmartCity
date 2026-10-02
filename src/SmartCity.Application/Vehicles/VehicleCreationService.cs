@@ -4,27 +4,30 @@ namespace SmartCity.Application.Vehicles;
 
 public sealed class VehicleCreationService
 {
-    public Vehicle Create(VehicleType vehicleType, string name) =>
-        vehicleType switch
+    private readonly Dictionary<VehicleType, VehicleCreator> _creators;
+
+    public VehicleCreationService()
+        : this([new DroneCreator(), new DeliveryRobotCreator(), new CourierBikeCreator()])
+    {
+    }
+
+    public VehicleCreationService(IEnumerable<VehicleCreator> creators)
+    {
+        ArgumentNullException.ThrowIfNull(creators);
+
+        _creators = creators.ToDictionary(creator => creator.VehicleType);
+    }
+
+    public Vehicle Create(VehicleType vehicleType, string name)
+    {
+        if (!_creators.TryGetValue(vehicleType, out var creator))
         {
-            VehicleType.Drone => new Drone(
-                Guid.NewGuid(),
-                name,
-                maxSpeedKph: 80m,
-                maxPayloadKg: 5m),
-            VehicleType.DeliveryRobot => new DeliveryRobot(
-                Guid.NewGuid(),
-                name,
-                maxSpeedKph: 12m,
-                maxPayloadKg: 50m),
-            VehicleType.CourierBike => new CourierBike(
-                Guid.NewGuid(),
-                name,
-                maxSpeedKph: 35m,
-                maxPayloadKg: 25m),
-            _ => throw new ArgumentOutOfRangeException(
+            throw new ArgumentOutOfRangeException(
                 nameof(vehicleType),
                 vehicleType,
-                "The requested vehicle type is not supported.")
-        };
+                "The requested vehicle type is not supported.");
+        }
+
+        return creator.Create(name);
+    }
 }
