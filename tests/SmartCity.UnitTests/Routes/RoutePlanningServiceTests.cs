@@ -131,6 +131,47 @@ public class RoutePlanningServiceTests
         Assert.Equal(parameterName, exception.ParamName);
     }
 
+    [Fact]
+    public void Plan_WhenCustomStrategyIsSupplied_DelegatesRequestAndReturnsItsPlan()
+    {
+        var strategy = new CustomRoutePlanningStrategy();
+        var service = new RoutePlanningService([strategy]);
+        var request = CreateRequest();
+
+        var plan = service.Plan(RoutePlanningMode.Fastest, request);
+
+        Assert.Same(request, strategy.ReceivedRequest);
+        Assert.Same(strategy.Result, plan);
+    }
+
+    [Fact]
+    public void Plan_WhenModeHasNoRegisteredStrategy_IsRejected()
+    {
+        var service = new RoutePlanningService([new FastestRoutePlanningStrategy()]);
+
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(
+            () => service.Plan(RoutePlanningMode.Eco, CreateRequest()));
+
+        Assert.Equal("mode", exception.ParamName);
+        Assert.Equal(RoutePlanningMode.Eco, exception.ActualValue);
+    }
+
+    private sealed class CustomRoutePlanningStrategy : IRoutePlanningStrategy
+    {
+        public RoutePlanningMode Mode => RoutePlanningMode.Fastest;
+
+        public RoutePlanningRequest? ReceivedRequest { get; private set; }
+
+        public RoutePlan Result { get; } = new(
+            RoutePlanningMode.Fastest, 24m, TimeSpan.FromMinutes(20), 12m, 7m);
+
+        public RoutePlan Plan(RoutePlanningRequest request)
+        {
+            ReceivedRequest = request;
+            return Result;
+        }
+    }
+
     private static RoutePlanningRequest CreateRequest(
         decimal trafficLevel = 0.5m, decimal operatingCostPerHour = 6m) =>
         new(24m, trafficLevel, 1m, 4m, 60m, operatingCostPerHour);
